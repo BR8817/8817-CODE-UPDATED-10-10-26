@@ -3,13 +3,13 @@
   "waypoints": [
     {
       "anchor": {
-        "x": 3.120413694721825,
-        "y": 0.6127246790299581
+        "x": 2.8875178316690437,
+        "y": 1.5960627674750354
       },
       "prevControl": null,
       "nextControl": {
-        "x": 4.141249369706459,
-        "y": 0.7117240529372046
+        "x": 3.908353506653678,
+        "y": 1.695062141382282
       },
       "isLocked": false,
       "linkedName": "Traveled Swipe 1"
@@ -69,7 +69,7 @@
   "folder": "Outpost Double",
   "idealStartingState": {
     "velocity": 0,
-    "rotation": -91.78991060824607
+    "rotation": -107.10272896905244
   },
   "useDefaultConstraints": true
 }

@@ -20,67 +20,87 @@ import frc.robot.Constants;
 
 public class ShooterIOTalonFX implements ShooterIO {
 
-  private final TalonFX top = new TalonFX(Constants.ShooterConstants.TOP_ID);
-  private final TalonFX mid = new TalonFX(Constants.ShooterConstants.MID_ID);
-  private final TalonFX bottom = new TalonFX(Constants.ShooterConstants.BOTTOM_ID);
+  private final TalonFX topLeft = new TalonFX(Constants.ShooterConstants.TOPLEFT_ID);
+  private final TalonFX btmLeft = new TalonFX(Constants.ShooterConstants.BTMLEFT_ID);
+  private final TalonFX topRight = new TalonFX(Constants.ShooterConstants.TOPRIGHT_ID);
+  private final TalonFX btmRight = new TalonFX(Constants.ShooterConstants.BTMRIGHT_ID);
   private final TalonFX feeder = new TalonFX(Constants.ShooterConstants.FEEDER_ID);
 
-  private final List<TalonFX> motors = List.of(top, mid, bottom, feeder);
+  private final List<TalonFX> motors = List.of(topLeft, topRight, btmLeft, btmRight, feeder);
 
-  private final VelocityVoltage topVelCtrl = new VelocityVoltage(0).withEnableFOC(true);
-  private final VelocityVoltage botVelCtrl = new VelocityVoltage(0).withEnableFOC(true);
+  private final VelocityVoltage topLeftVelCtrl = new VelocityVoltage(0).withEnableFOC(true);
+  private final VelocityVoltage topRightVelCtrl = new VelocityVoltage(0).withEnableFOC(true);
+  //private final VelocityVoltage btmLeftVelCtrl = new VelocityVoltage(0).withEnableFOC(true);
+  //private final VelocityVoltage btmRightVelCtrl = new VelocityVoltage(0).withEnableFOC(true);
   private final VelocityVoltage feederVelCtrl = new VelocityVoltage(0).withEnableFOC(true);
 
-  private final StatusSignal<AngularVelocity> topVel = top.getVelocity();
-  private final StatusSignal<AngularVelocity> midVel = mid.getVelocity();
-  private final StatusSignal<AngularVelocity> botVel = bottom.getVelocity();
+  private final MotorAlignmentValue leftAlign =
+      (Constants.ShooterConstants.BTMLEFT_INVERTED == Constants.ShooterConstants.TOPLEFT_INVERTED)
+          ? MotorAlignmentValue.Aligned : MotorAlignmentValue.Opposed;
+  private final MotorAlignmentValue rightAlign =
+      (Constants.ShooterConstants.BTMRIGHT_INVERTED == Constants.ShooterConstants.TOPRIGHT_INVERTED)
+          ? MotorAlignmentValue.Aligned : MotorAlignmentValue.Opposed;
+
+  private final StatusSignal<AngularVelocity> topRightVel = topLeft.getVelocity();
+  private final StatusSignal<AngularVelocity> topLeftVel = topRight.getVelocity();
+  private final StatusSignal<AngularVelocity> btmRightVel = btmRight.getVelocity();
+   private final StatusSignal<AngularVelocity> btmLeftVel = btmLeft.getVelocity();
   private final StatusSignal<AngularVelocity> feedVel = feeder.getVelocity();
 
-  private final StatusSignal<Voltage> topVolts = top.getMotorVoltage();
-  private final StatusSignal<Voltage> midVolts = mid.getMotorVoltage();
-  private final StatusSignal<Voltage> botVolts = bottom.getMotorVoltage();
+  private final StatusSignal<Voltage> topRightVolts = topLeft.getMotorVoltage();
+  private final StatusSignal<Voltage> topLeftVolts = topRight.getMotorVoltage();
+  private final StatusSignal<Voltage> btmRightVolts = btmRight.getMotorVoltage();
+  private final StatusSignal<Voltage> btmLeftVolts = btmLeft.getMotorVoltage();
   private final StatusSignal<Voltage> feederVolts = feeder.getMotorVoltage();
 
-  private final StatusSignal<Current> topAmps = top.getSupplyCurrent();
-  private final StatusSignal<Current> midAmps = mid.getSupplyCurrent();
-  private final StatusSignal<Current> botAmps = bottom.getSupplyCurrent();
+  private final StatusSignal<Current> topRightAmps = topLeft.getSupplyCurrent();
+  private final StatusSignal<Current> topLeftAmps = topRight.getSupplyCurrent();
+  private final StatusSignal<Current> btmRightAmps = btmRight.getSupplyCurrent();
+  private final StatusSignal<Current> btmLeftAmps = btmLeft.getSupplyCurrent();
   private final StatusSignal<Current> feederAmps = feeder.getSupplyCurrent();
 
-  private final StatusSignal<Temperature> topTemp = top.getDeviceTemp();
-  private final StatusSignal<Temperature> midTemp = mid.getDeviceTemp();
-  private final StatusSignal<Temperature> botTemp = bottom.getDeviceTemp();
+  private final StatusSignal<Temperature> topRightTemp = topLeft.getDeviceTemp();
+  private final StatusSignal<Temperature> topLeftTemp = topRight.getDeviceTemp();
+  private final StatusSignal<Temperature> btmRightTemp = btmRight.getDeviceTemp();
+   private final StatusSignal<Temperature> btmLeftTemp = btmLeft.getDeviceTemp();
   private final StatusSignal<Temperature> feederTemp = feeder.getDeviceTemp();
 
   public ShooterIOTalonFX() {
-    TalonFXConfiguration topCfg = buildFlywheelConfig(
-        Constants.ShooterConstants.TOP_INVERTED,
+    TalonFXConfiguration topRightCfg = buildFlywheelConfig(
+        Constants.ShooterConstants.TOPRIGHT_INVERTED,
         Constants.ShooterConstants.SUPPLY_LIMIT_A);
 
-    TalonFXConfiguration midCfg = buildFlywheelConfig(
-        Constants.ShooterConstants.MID_INVERTED,
+    TalonFXConfiguration topLeftCfg = buildFlywheelConfig(
+        Constants.ShooterConstants.TOPLEFT_INVERTED,
         Constants.ShooterConstants.SUPPLY_LIMIT_A);
 
-    TalonFXConfiguration botCfg = buildFlywheelConfig(
-        Constants.ShooterConstants.BOTTOM_INVERTED,
+    TalonFXConfiguration btmRightCfg = buildFlywheelConfig(
+        Constants.ShooterConstants.BTMRIGHT_INVERTED,
+        Constants.ShooterConstants.SUPPLY_LIMIT_A);
+    
+    TalonFXConfiguration btmLeftCfg = buildFlywheelConfig(
+        Constants.ShooterConstants.BTMLEFT_INVERTED,
         Constants.ShooterConstants.SUPPLY_LIMIT_A);
 
     TalonFXConfiguration feedCfg = buildFlywheelConfig(
         Constants.ShooterConstants.FEEDER_INVERTED,
         Constants.ShooterConstants.FEEDER_SUPPLY_LIMIT_A);
 
-    top.getConfigurator().apply(topCfg);
-    mid.getConfigurator().apply(midCfg);
-    bottom.getConfigurator().apply(botCfg);
+    topLeft.getConfigurator().apply(topLeftCfg);
+    topRight.getConfigurator().apply(topRightCfg);
+    btmLeft.getConfigurator().apply(btmLeftCfg);
+    btmRight.getConfigurator().apply(btmRightCfg);
     feeder.getConfigurator().apply(feedCfg);
 
-    mid.setControl(new Follower(top.getDeviceID(), MotorAlignmentValue.Opposed));
 
+    topLeft.setControl(new Follower(btmLeft.getDeviceID(), MotorAlignmentValue.Aligned));
+    topRight.setControl(new Follower(btmRight.getDeviceID(), MotorAlignmentValue.Aligned));
     BaseStatusSignal.setUpdateFrequencyForAll(
         50,
-        topVel, midVel, botVel, feedVel,
-        topVolts, midVolts, botVolts, feederVolts,
-        topAmps, midAmps, botAmps, feederAmps,
-        topTemp, midTemp, botTemp, feederTemp);
+        topRightVel, topLeftVel, btmLeftVel, btmRightVel, feedVel,
+        topRightVolts, topLeftVolts, btmRightVolts, feederVolts,
+        topRightAmps, topLeftAmps, btmLeftAmps, feederAmps,
+        topRightTemp, topLeftTemp, btmRightTemp, feederTemp);
   }
 
   private TalonFXConfiguration buildFlywheelConfig(boolean inverted, double currentLimit) {
@@ -117,48 +137,56 @@ public class ShooterIOTalonFX implements ShooterIO {
   @Override
   public void updateInputs(ShooterIOInputs inputs) {
     BaseStatusSignal.refreshAll(
-        topVel, midVel, botVel, feedVel,
-        topVolts, midVolts, botVolts, feederVolts,
-        topAmps, midAmps, botAmps, feederAmps,
-        topTemp, midTemp, botTemp, feederTemp);
+       topRightVel, topLeftVel, btmLeftVel, btmRightVel, feedVel,
+        topRightVolts, topLeftVolts, btmRightVolts, feederVolts,
+        topRightAmps, topLeftAmps, btmLeftAmps, feederAmps,
+        topRightTemp, topLeftTemp, btmRightTemp, feederTemp);
 
-    inputs.topVelocityRps = topVel.getValueAsDouble();
-    inputs.midVelocityRps = midVel.getValueAsDouble();
-    inputs.bottomVelocityRps = botVel.getValueAsDouble();
+    inputs.topVelocityRps = topLeftVel.getValueAsDouble();
+    inputs.midVelocityRps = topRightVel.getValueAsDouble();
+    inputs.bottomVelocityRps = btmLeftVel.getValueAsDouble();
+    inputs.bottomVelocityRps = btmRightVel.getValueAsDouble();
     inputs.feederVelocityRps = feedVel.getValueAsDouble();
 
-    inputs.topAppliedVolts = topVolts.getValueAsDouble();
-    inputs.midAppliedVolts = midVolts.getValueAsDouble();
-    inputs.bottomAppliedVolts = botVolts.getValueAsDouble();
+    inputs.topAppliedVolts = topLeftVolts.getValueAsDouble();
+    inputs.midAppliedVolts = topRightVolts.getValueAsDouble();
+    inputs.bottomAppliedVolts = btmLeftVolts.getValueAsDouble();
+    inputs.bottomAppliedVolts = btmRightVolts.getValueAsDouble();
     inputs.feederAppliedVolts = feederVolts.getValueAsDouble();
 
-    inputs.topCurrentAmps = topAmps.getValueAsDouble();
-    inputs.midCurrentAmps = midAmps.getValueAsDouble();
-    inputs.bottomCurrentAmps = botAmps.getValueAsDouble();
+    inputs.topCurrentAmps = topLeftAmps.getValueAsDouble();
+    inputs.midCurrentAmps = topRightAmps.getValueAsDouble();
+    inputs.bottomCurrentAmps = btmLeftAmps.getValueAsDouble();
+    inputs.bottomCurrentAmps = btmRightAmps.getValueAsDouble();
     inputs.feederCurrentAmps = feederAmps.getValueAsDouble();
 
-    inputs.topTempC = topTemp.getValueAsDouble();
-    inputs.midTempC = midTemp.getValueAsDouble();
-    inputs.bottomTempC = botTemp.getValueAsDouble();
+    inputs.topTempC = topLeftTemp.getValueAsDouble();
+    inputs.midTempC = topRightTemp.getValueAsDouble();
+    inputs.bottomTempC = btmLeftTemp.getValueAsDouble();
+    inputs.bottomTempC = btmRightTemp.getValueAsDouble();
     inputs.feederTempC = feederTemp.getValueAsDouble();
   }
 
   @Override
   public void setFlywheelVelocityRps(double topRps, double bottomRps, double feedRps) {
-    top.setControl(topVelCtrl.withVelocity(topRps));
-    bottom.setControl(botVelCtrl.withVelocity(bottomRps));
+    topLeft.setControl(topLeftVelCtrl.withVelocity(topRps));
+    topRight.setControl(topRightVelCtrl.withVelocity(bottomRps));
     feeder.setControl(feederVelCtrl.withVelocity(feedRps));
 
-    mid.setControl(new Follower(top.getDeviceID(), MotorAlignmentValue.Opposed));
+    btmLeft.setControl(new Follower(topLeft.getDeviceID(), leftAlign));
+    btmRight.setControl(new Follower(topRight.getDeviceID(), rightAlign));
+
   }
 
   @Override
   public void setFlywheelVoltage(double topVoltsOut, double bottomVoltsOut, double feedVoltsOut) {
-    top.setVoltage(topVoltsOut);
-    bottom.setVoltage(bottomVoltsOut);
+    topLeft.setVoltage(topVoltsOut);
+    topRight.setVoltage(bottomVoltsOut);
     feeder.setVoltage(feedVoltsOut);
 
-    mid.setControl(new Follower(top.getDeviceID(), MotorAlignmentValue.Opposed));
+    btmLeft.setControl(new Follower(topLeft.getDeviceID(), leftAlign));
+    btmRight.setControl(new Follower(topRight.getDeviceID(), rightAlign));
+
   }
 
   @Override

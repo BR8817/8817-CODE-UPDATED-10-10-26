@@ -11,18 +11,23 @@ public interface IntakePivotIO {
 
   @Logged
   class IntakePivotIOInputs {
-    public double motorPercent;       // commanded output
+    public double motorPercent;
     public double motorVolts;
     public double motorAmps;
     public double motorTempC;
-    public double pivotPositionRot;   // continuous position from TalonFX (mechanism rotations)
-    public double pivotVelocityRps;   // mechanism rotations per second
-    public double pivotAbsPositionRot; // CANcoder absolute position (for debug)
-    public boolean homed;             // true once we've zeroed the position
+    public double pivotPositionRot;
+    public double pivotVelocityRps;
+    public double pivotAbsPositionRot;
+    public boolean homed;
   }
 
   void updateInputs(IntakePivotIOInputs inputs);
+
   void setPercent(double percent);
+
   void stop();
+
+  default void zeroPosition() {}
+
   default void simulationPeriodic() {}
 }

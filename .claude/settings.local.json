@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(.\\\\gradlew.bat build -x test --console=plain)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Public\\\\wpilib\" -Directory -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName; Test-Path \\(Join-Path $_.FullName \"jdk\\\\bin\\\\java.exe\"\\) }; \"JAVA_HOME=$env:JAVA_HOME\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Public\\\\wpilib\\\\2026\\\\jdk\"; & \"$env:JAVA_HOME\\\\bin\\\\java.exe\" -version; .\\\\gradlew.bat build -x test --console=plain)",
+      "Bash(git check-ignore *)"
+    ]
+  }
+}

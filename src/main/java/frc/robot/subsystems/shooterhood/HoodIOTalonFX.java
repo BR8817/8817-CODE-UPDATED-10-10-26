@@ -52,7 +52,7 @@ public class HoodIOTalonFX implements HoodIO {
     cfg.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
     cfg.SoftwareLimitSwitch.ReverseSoftLimitThreshold = Constants.ShooterConstants.HOOD_MIN_ROT;
 
-    cfg.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
+    cfg.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
     hoodMotor.getConfigurator().apply(cfg);
 
     BaseStatusSignal.setUpdateFrequencyForAll(50, motorPos, motorVolts, motorAmps, motorTemp, cancoderAbs);

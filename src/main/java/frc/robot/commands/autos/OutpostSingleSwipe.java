@@ -63,9 +63,10 @@ public class OutpostSingleSwipe {
         // Phase 1: drive to zone + collect (intake running, pivot deployed)
         Commands.deadline(
             Commands.sequence(
+                Commands.waitSeconds(0.00),
                 Commands.runOnce(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE), intake),
-                Commands.deadline(AutoBuilder.followPath(toZone), Commands.waitSeconds(0.35)),
-                Commands.waitSeconds(0.35),
+                Commands.deadline(AutoBuilder.followPath(toZone), Commands.waitSeconds(0.00)),
+                Commands.waitSeconds(0.00),
                 Commands.runOnce(() -> intake.setWantedState(IntakeSubsystem.WantedState.IDLE), intake),
                 Commands.deadline(AutoBuilder.followPath(shoot),
                     Commands.startEnd(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE),
@@ -79,7 +80,7 @@ public class OutpostSingleSwipe {
                 Commands.deadline(AutoBuilder.followPath(homeDepot),
                     Commands.startEnd(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE),
                         () -> intake.setWantedState(IntakeSubsystem.WantedState.IDLE), intake)),
-                Commands.waitSeconds(0.35)),
+                Commands.waitSeconds(0.00)),
             holdPivotDeployed(intakePivot)),
 
         // Phase 3: auto-aim and shoot

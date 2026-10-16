@@ -11,8 +11,6 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-
 import org.photonvision.PhotonCamera;
 import org.photonvision.targeting.PhotonPipelineResult;
 import org.photonvision.targeting.PhotonTrackedTarget;
@@ -27,6 +25,7 @@ public class Vision extends SubsystemBase {
   private final PIDController strafePid = new PIDController(2.0, 0.0, 0.0);
 
   private final ShuffleboardTab tab = Shuffleboard.getTab("Vision");
+
   private final GenericEntry sbHasTarget = tab.add("Has Target", false).getEntry();
   private final GenericEntry sbTagId = tab.add("Best Tag ID", -1).getEntry();
   private final GenericEntry sbYawDeg = tab.add("Best Yaw (deg)", 0.0).getEntry();
@@ -62,23 +61,29 @@ public class Vision extends SubsystemBase {
 
   public void updateVisionPose(CommandSwerveDrivetrain drivetrain) {
     Pose2d curPose = drivetrain.getState().Pose;
+
     io.getVisionUpdate(curPose).ifPresent(update -> {
       Pose2d visionPose = update.pose();
-      double translationError = Math.hypot(
-          visionPose.getX() - curPose.getX(),
-          visionPose.getY() - curPose.getY());
-      double rotationErrorDeg = Math.abs(
-          visionPose.getRotation().minus(curPose.getRotation()).getDegrees());
-      double robotSpeed = Math.hypot(
-          drivetrain.getState().Speeds.vxMetersPerSecond,
-          drivetrain.getState().Speeds.vyMetersPerSecond);
-      double omegaDegPerSec = Math.abs(
-          Units.radiansToDegrees(drivetrain.getState().Speeds.omegaRadiansPerSecond));
 
-      boolean accept = translationError <= MAX_VISION_TRANSLATION_ERROR_M
-          && rotationErrorDeg <= MAX_VISION_ROTATION_ERROR_DEG
-          && robotSpeed <= MAX_VISION_LINEAR_SPEED_MPS
-          && omegaDegPerSec <= MAX_VISION_OMEGA_DEGPS;
+      double translationError =
+          Math.hypot(visionPose.getX() - curPose.getX(), visionPose.getY() - curPose.getY());
+
+      double rotationErrorDeg =
+          Math.abs(visionPose.getRotation().minus(curPose.getRotation()).getDegrees());
+
+      double robotSpeed =
+          Math.hypot(
+              drivetrain.getState().Speeds.vxMetersPerSecond,
+              drivetrain.getState().Speeds.vyMetersPerSecond);
+
+      double omegaDegPerSec =
+          Math.abs(Units.radiansToDegrees(drivetrain.getState().Speeds.omegaRadiansPerSecond));
+
+      boolean accept =
+          translationError <= MAX_VISION_TRANSLATION_ERROR_M
+              && rotationErrorDeg <= MAX_VISION_ROTATION_ERROR_DEG
+              && robotSpeed <= MAX_VISION_LINEAR_SPEED_MPS
+              && omegaDegPerSec <= MAX_VISION_OMEGA_DEGPS;
 
       sbVisionPoseErrorM.setDouble(translationError);
       sbVisionRotErrorDeg.setDouble(rotationErrorDeg);
@@ -94,7 +99,11 @@ public class Vision extends SubsystemBase {
 
   public Optional<PhotonTrackedTarget> getBestTarget() {
     PhotonPipelineResult res = camera.getLatestResult();
-    if (res == null || !res.hasTargets()) return Optional.empty();
+
+    if (res == null || !res.hasTargets()) {
+      return Optional.empty();
+    }
+
     return Optional.of(res.getBestTarget());
   }
 
@@ -113,7 +122,6 @@ public class Vision extends SubsystemBase {
     }
   }
 
-  // we replaced this offset in the main thing
   private double getRobotCenterYawRad(PhotonTrackedTarget t) {
     double xCam = t.getBestCameraToTarget().getX();
     double yCam = t.getBestCameraToTarget().getY();
@@ -124,29 +132,16 @@ public class Vision extends SubsystemBase {
     return Math.atan2(yRobot, xRobot);
   }
 
-  // I know this isn't very organized but you get the idea hopefully
-  private static class CenterFullCalcResult {
-    final double dist;
-    final double yawRad;
-    final int tagsUsed;
-
-    CenterFullCalcResult (double dist, double yawRad, int tagsUsed) {
-      this.dist = dist;
-      this.yawRad = yawRad;
-      this.tagsUsed = tagsUsed;
-    }
-
-    CenterYawResult toCenterYawResult() {
-      return new CenterYawResult(yawRad, tagsUsed);
-    }
-  }
-
-  public CenterFullCalcResult calcHubCenterDistAndYaw() {
+  private CenterYawResult calcHubCenterYawRadWithCount() {
     PhotonPipelineResult res = camera.getLatestResult();
-    if (res == null || !res.hasTargets()) return new CenterFullCalcResult(0.0, 0.0, 0);
+
+    if (res == null || !res.hasTargets()) {
+      return new CenterYawResult(0.0, 0);
+    }
 
     List<Integer> hubCenters = new ArrayList<>();
     List<Integer> hubIDs = new ArrayList<>();
+
     boolean blueAlliance =
         DriverStation.getAlliance().orElse(DriverStation.Alliance.Blue)
             == DriverStation.Alliance.Blue;
@@ -160,110 +155,103 @@ public class Vision extends SubsystemBase {
     }
 
     double yawTotal = 0.0;
-    double rawDist = 0.0;
     int tagCount = 0;
-    // remove non-hub targets
-    var targets = res.getTargets().stream().filter((t) -> hubIDs.contains(t.getFiducialId())).collect(Collectors.toList());
+
+    var targets = res.getTargets();
 
     if (targets.size() == 1) {
       var t = targets.get(0);
-      yawTotal += t.getYaw();
-      rawDist += Math.hypot(t.getBestCameraToTarget().getX(), t.getBestCameraToTarget().getY());
-      tagCount++;
+
+      if (hubIDs.contains(t.getFiducialId())) {
+        yawTotal += getRobotCenterYawRad(t);
+        tagCount++;
+      }
     } else if (targets.size() == 2) {
       var t0 = targets.get(0);
       var t1 = targets.get(1);
 
-      if ((t1.getFiducialId() - t0.getFiducialId()) == (hubCenters.contains(t0.getFiducialId()) ? 1 : -1)
-          || !(hubCenters.contains(t0.getFiducialId()) || hubCenters.contains(t1.getFiducialId()))) {
-        for (var t : targets) {
-          yawTotal += t.getYaw();
-          rawDist += Math.hypot(t.getBestCameraToTarget().getX(), t.getBestCameraToTarget().getY());
+      boolean useAllHubTags =
+          (t1.getFiducialId() - t0.getFiducialId())
+                  == (hubCenters.contains(t0.getFiducialId()) ? 1 : -1)
+              || !(hubCenters.contains(t0.getFiducialId())
+                  || hubCenters.contains(t1.getFiducialId()));
+
+      for (var t : targets) {
+        boolean useTag =
+            useAllHubTags
+                ? hubIDs.contains(t.getFiducialId())
+                : hubCenters.contains(t.getFiducialId());
+
+        if (useTag) {
+          yawTotal += getRobotCenterYawRad(t);
           tagCount++;
-        }
-      } else {
-        for (var t : targets) {
-          if (hubCenters.contains(t.getFiducialId())) {
-            yawTotal += t.getYaw();
-            rawDist += Math.hypot(t.getBestCameraToTarget().getX(), t.getBestCameraToTarget().getY());
-            tagCount++;
-          }
-        }
+        }  
       }
     } else if (targets.size() == 3) {
       for (var t : targets) {
-        yawTotal += t.getYaw();
-        rawDist += Math.hypot(t.getBestCameraToTarget().getX(), t.getBestCameraToTarget().getY());
-        tagCount++;
+        if (hubCenters.contains(t.getFiducialId())) {
+          yawTotal += getRobotCenterYawRad(t);
+          tagCount++;
+        }
       }
     } else {
       for (var t : targets) {
-        yawTotal += t.getYaw();
-        rawDist += Math.hypot(t.getBestCameraToTarget().getX(), t.getBestCameraToTarget().getY());
-        tagCount++;
+        if (hubIDs.contains(t.getFiducialId())) {
+          yawTotal += getRobotCenterYawRad(t);
+          tagCount++;
+        }
       }
     }
 
-    if (tagCount == 0) return new CenterFullCalcResult(0.0, 0.0, 0);
-
-
-    double rawYaw = yawTotal / tagCount;
-    rawDist /= tagCount;
-    
-
-    // Yaw Correction (more inaccurate because it uses rawDist)
-    boolean flip = false;
-    if (rawYaw % Math.PI != rawYaw) {
-      rawYaw = -rawYaw;
-      flip = true;
+    if (tagCount == 0) {
+      return new CenterYawResult(0.0, 0);
     }
 
-    final double xTrans = Constants.VisionConstants.CAM_X_METERS;
-    final double yTrans = Constants.VisionConstants.CAM_Y_METERS;
-    final double fullTrans = Math.hypot(xTrans, yTrans);
-
-    final double futureDist = Math.sqrt(Math.pow(rawDist,2) + Math.pow(fullTrans,2) - 2 * rawDist * fullTrans * Math.cos(rawYaw));
-    final double YawCorrected = (flip ? -rawYaw : rawYaw) + Math.acos((-Math.pow(fullTrans,2) + Math.pow(futureDist,2) + Math.pow(rawDist, 2)) / (2 * futureDist * dist));
-    
-    // Dist Correction (more accureate because it's uses YawCorrected)
-    
-
-    return new CenterFullCalcResult(futureDist, YawCorrected, tagCount);
-  } 
-
-  private CenterYawResult calcHubCenterYawRadWithCount() {
-    return calcHubCenterDistAndYaw().toCenterYawResult();
+    return new CenterYawResult(yawTotal / tagCount, tagCount);
   }
 
   public double calcAimOmegaRadPerSec() {
     CenterYawResult center = calcHubCenterYawRadWithCount();
+
+    double offsetRad = Units.degreesToRadians(Constants.VisionConstants.AIM_YAW_OFFSET_DEG);
+
     if (center.tagsUsed > 0) {
-      return -yawPid.calculate(center.yawRad, 0.0);
+      return -yawPid.calculate(center.yawRad, offsetRad);
     }
 
     return getBestTarget()
-        .map(t -> -yawPid.calculate(getRobotCenterYawRad(t), 0.0))
+        .map(t -> -yawPid.calculate(getRobotCenterYawRad(t), offsetRad))
         .orElse(0.0);
   }
 
   public double calcStrafeVyRobotMps() {
-    return getBestTarget().map(t -> {
-      double lateral =
-          t.getBestCameraToTarget().getTranslation().getY()
-              + Constants.VisionConstants.CAM_Y_METERS;
-      double vy = strafePid.calculate(lateral, 0.0);
-      if (Math.abs(lateral) < strafePid.getErrorTolerance()) vy = 0.0;
-      return Math.max(-1.5, Math.min(1.5, vy));
-    }).orElse(0.0);
+    return getBestTarget()
+        .map(t -> {
+          double lateral =
+              t.getBestCameraToTarget().getTranslation().getY()
+                  + Constants.VisionConstants.CAM_Y_METERS;
+
+          double vy = strafePid.calculate(lateral, 0.0);
+
+          if (Math.abs(lateral) < strafePid.getErrorTolerance()) {
+            vy = 0.0;
+          }
+
+          return Math.max(-1.5, Math.min(1.5, vy));
+        })
+        .orElse(0.0);
   }
 
   public double calcApproachVxRobotMps(double stopDistanceMeters, double approachSpeedMps) {
-    return getBestTarget().map(t -> {
-      double x =
-          t.getBestCameraToTarget().getTranslation().getX()
-              + Constants.VisionConstants.CAM_X_METERS;
-      return Math.abs(x) > stopDistanceMeters ? +approachSpeedMps : 0.0;
-    }).orElse(0.0);
+    return getBestTarget()
+        .map(t -> {
+          double x =
+              t.getBestCameraToTarget().getTranslation().getX()
+                  + Constants.VisionConstants.CAM_X_METERS;
+
+          return Math.abs(x) > stopDistanceMeters ? +approachSpeedMps : 0.0;
+        })
+        .orElse(0.0);
   }
 
   @Override
@@ -271,6 +259,7 @@ public class Vision extends SubsystemBase {
     yawPid.setP(sbAimKp.getDouble(4.0));
     yawPid.setD(sbAimKd.getDouble(0.15));
     yawPid.setTolerance(Units.degreesToRadians(sbAimTolDeg.getDouble(2.0)));
+
     strafePid.setP(sbStrafeKp.getDouble(2.0));
     strafePid.setTolerance(sbStrafeTolM.getDouble(0.05));
 
@@ -279,8 +268,10 @@ public class Vision extends SubsystemBase {
 
     if (opt.isPresent()) {
       var t = opt.get();
+
       double xCam = t.getBestCameraToTarget().getTranslation().getX();
       double yCam = t.getBestCameraToTarget().getTranslation().getY();
+
       double xRobot = xCam + Constants.VisionConstants.CAM_X_METERS;
       double yRobot = yCam + Constants.VisionConstants.CAM_Y_METERS;
 

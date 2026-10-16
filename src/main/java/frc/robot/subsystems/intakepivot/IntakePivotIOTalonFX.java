@@ -14,8 +14,9 @@ import frc.robot.Constants;
 
 /**
  * TalonFX + CANcoder implementation of the intake pivot.
- * On first boot we zero the Talon's position to 0 (wherever the arm is).
- * After that, the Talon tracks continuous mechanism rotations through its gear ratio.
+ *
+ * Instead of zeroing the Talon to 0 wherever the arm happens to be,
+ * this seeds the Talon position from the absolute through-bore/CANcoder.
  */
 public class IntakePivotIOTalonFX implements IntakePivotIO {
 
@@ -37,26 +38,37 @@ public class IntakePivotIOTalonFX implements IntakePivotIO {
     pivotEncoder.getConfigurator().apply(new CANcoderConfiguration());
 
     TalonFXConfiguration cfg = new TalonFXConfiguration();
-    cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake; // hold position when idle
+
+    cfg.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     cfg.MotorOutput.Inverted = Constants.IntakePivotConstants.PIVOT_INVERTED
-        ? InvertedValue.Clockwise_Positive : InvertedValue.CounterClockwise_Positive;
-    // SensorToMechanismRatio makes position read in mechanism rotations, not motor rotations
+        ? InvertedValue.Clockwise_Positive
+        : InvertedValue.CounterClockwise_Positive;
+
     cfg.Feedback.SensorToMechanismRatio = Constants.IntakePivotConstants.PIVOT_GEAR_RATIO;
+
     cfg.CurrentLimits.SupplyCurrentLimitEnable = true;
     cfg.CurrentLimits.SupplyCurrentLimit = Constants.IntakePivotConstants.PIVOT_SUPPLY_LIMIT_A;
+
     pivotMotor.getConfigurator().apply(cfg);
 
-    BaseStatusSignal.setUpdateFrequencyForAll(50,
-        motorPos, motorVel, motorVolts, motorAmps, motorTemp, cancoderAbs);
+    BaseStatusSignal.setUpdateFrequencyForAll(
+        50,
+        motorPos,
+        motorVel,
+        motorVolts,
+        motorAmps,
+        motorTemp,
+        cancoderAbs);
   }
 
   @Override
   public void updateInputs(IntakePivotIOInputs inputs) {
     BaseStatusSignal.refreshAll(motorPos, motorVel, motorVolts, motorAmps, motorTemp, cancoderAbs);
 
-    // Zero position once on boot so all our limits start from 0
+    double absRot = cancoderAbs.getValueAsDouble();
+
     if (!seeded) {
-      pivotMotor.setPosition(0);
+      pivotMotor.setPosition(absToMechanismRot(absRot));
       seeded = true;
     }
 
@@ -64,10 +76,31 @@ public class IntakePivotIOTalonFX implements IntakePivotIO {
     inputs.motorVolts = motorVolts.getValueAsDouble();
     inputs.motorAmps = motorAmps.getValueAsDouble();
     inputs.motorTempC = motorTemp.getValueAsDouble();
+
     inputs.pivotPositionRot = motorPos.getValueAsDouble();
     inputs.pivotVelocityRps = motorVel.getValueAsDouble();
-    inputs.pivotAbsPositionRot = cancoderAbs.getValueAsDouble();
+    inputs.pivotAbsPositionRot = absRot;
+
     inputs.homed = seeded;
+  }
+
+  /**
+   * Converts absolute encoder position into mechanism rotations.
+   *
+   * CANCODER_OFFSET_ROT should be the AbsRot value when the intake is physically stowed.
+   * That makes stowed = 0.0 rotations.
+   */
+  private double absToMechanismRot(double absRot) {
+    double zeroed = absRot - Constants.IntakePivotConstants.CANCODER_OFFSET_ROT;
+
+    // Wrap from [0, 1) into roughly [-0.5, 0.5]
+    if (zeroed > 0.5) {
+      zeroed -= 1.0;
+    } else if (zeroed < -0.5) {
+      zeroed += 1.0;
+    }
+
+    return zeroed;
   }
 
   @Override
@@ -80,5 +113,11 @@ public class IntakePivotIOTalonFX implements IntakePivotIO {
   public void stop() {
     lastPercent = 0.0;
     pivotMotor.stopMotor();
+  }
+
+  @Override
+  public void zeroPosition() {
+    pivotMotor.setPosition(0.0);
+    seeded = true;
   }
 }

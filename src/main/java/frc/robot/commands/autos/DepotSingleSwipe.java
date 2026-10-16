@@ -61,9 +61,10 @@ public class DepotSingleSwipe {
         // Phase 1: intake + drive to zone + collect
         Commands.deadline(
             Commands.sequence(
-                Commands.runOnce(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE), intake),
-                Commands.deadline(AutoBuilder.followPath(toZone), Commands.waitSeconds(0.00)),
                 Commands.waitSeconds(0.00),
+                Commands.runOnce(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE), intake),
+                Commands.deadline(AutoBuilder.followPath(toZone), Commands.waitSeconds(0.20)),
+                Commands.waitSeconds(0.20),
                 Commands.runOnce(() -> intake.setWantedState(IntakeSubsystem.WantedState.IDLE), intake),
                 Commands.deadline(AutoBuilder.followPath(shoot),
                     Commands.startEnd(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE),
@@ -83,7 +84,7 @@ public class DepotSingleSwipe {
                         () -> shooter.setWantedState(ShooterSubsystem.WantedState.IDLE), shooter),
                     Commands.startEnd(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE),
                         () -> intake.setWantedState(IntakeSubsystem.WantedState.IDLE), intake)),
-                Commands.waitSeconds(0.00),
+                Commands.waitSeconds(0.20),
                 Commands.deadline(AutoBuilder.followPath(back),
                     Commands.startEnd(() -> shooter.setWantedState(ShooterSubsystem.WantedState.PREPARE_SHOT),
                         () -> shooter.setWantedState(ShooterSubsystem.WantedState.IDLE), shooter),

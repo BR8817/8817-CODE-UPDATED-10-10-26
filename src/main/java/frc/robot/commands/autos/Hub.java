@@ -54,6 +54,7 @@ public class Hub {
         // Drive out, intake, come back
         Commands.deadline(
             Commands.sequence(
+                Commands.waitSeconds(0.00),
                 Commands.runOnce(() -> intake.setWantedState(IntakeSubsystem.WantedState.INTAKE), intake),
                 AutoBuilder.followPath(toZone),
                 Commands.waitSeconds(0.5),
